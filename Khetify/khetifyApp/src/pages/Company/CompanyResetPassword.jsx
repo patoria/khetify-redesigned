@@ -7,6 +7,11 @@ const CompanyResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
+  // The reset link a TEAM MEMBER (e.g. a Warehouse Manager) receives carries
+  // `type=member`, so the same page consumes the token on the member
+  // endpoint. Without the param this is the company flow, exactly as before.
+  const isMember = searchParams.get("type") === "member";
+  const endpoint = isMember ? "users/reset-password" : "company/reset-password";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -25,7 +30,7 @@ const CompanyResetPassword = () => {
 
     try {
       setLoading(true);
-      await axios.post(`${config.BASE_URL}company/reset-password`, {
+      await axios.post(`${config.BASE_URL}${endpoint}`, {
         token,
         password: password.trim(),
       });

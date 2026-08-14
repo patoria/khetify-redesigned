@@ -30,6 +30,8 @@ const supportRoutes = require("./routes/Support/supportRoutes");
 const chatRoutes = require("./routes/Support/chatRoutes"); // company↔admin live support chat (company side)
 const adminChatRoutes = require("./routes/Support/adminChatRoutes"); // live support chat (admin side)
 const lotRoutes = require("./routes/Inventory/lotRoutes");
+// Repack cartons assembled at dispatch out of loose picked units.
+const repackRoutes = require("./routes/Inventory/repackRoutes");
 const transportRoutes = require("./routes/Transport/transportRoutes");
 const orderRoutes = require("./routes/Order/orderRoutes");
 const analyticsRoutes = require("./routes/Analytics/analyticsRoutes");
@@ -113,6 +115,7 @@ app.get("/healthz", (req, res) => {
 });
 
 app.use("/api/lots", lotRoutes);
+app.use("/api/repack-boxes", repackRoutes);
 app.use("/api/transport", transportRoutes);
 
 /* =========================

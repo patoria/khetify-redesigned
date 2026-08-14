@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import {
   getSellerReportList, runSellerReport, downloadSellerReportCsv, getSellerWarehouses,
@@ -56,7 +56,13 @@ const SellerAnalytics = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const columns = useMemo(() => (rows[0] ? Object.keys(rows[0]).filter((c) => !HIDDEN_COLS.includes(c)) : []), [rows]);
+  // Underscore-prefixed keys are INTERNAL row metadata (the lot id behind a
+  // Stock on Hand line, used by the View action) and are never a column.
+  const columns = useMemo(
+    () => (rows[0] ? Object.keys(rows[0]).filter((c) => !c.startsWith('_') && !HIDDEN_COLS.includes(c)) : []),
+    [rows]
+  );
+  const colCount = columns.length + 1; // + Actions
   const download = async () => {
     try { await downloadSellerReportCsv(REPORT_NAME, Object.fromEntries(Object.entries(filters).filter(([, v]) => v))); } catch (e) { apiError(e); }
   };
@@ -113,15 +119,31 @@ const SellerAnalytics = () => {
             <table className="w-full text-left border-collapse text-sm">
               <thead><tr className="bg-stone-50 border-b border-stone-200">
                 {columns.map((c) => <th key={c} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-stone-400 whitespace-nowrap">{c}</th>)}
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-stone-400 whitespace-nowrap text-right">Actions</th>
               </tr></thead>
               <tbody className="divide-y divide-stone-100">
                 {rows.map((r, i) => (
                   <tr key={i} className="hover:bg-stone-50/40">
                     {columns.map((c) => <td key={c} className="px-4 py-2.5 text-stone-700 whitespace-nowrap">{typeof r[c] === 'boolean' ? (r[c] ? 'Yes' : 'No') : String(r[c] ?? '')}</td>)}
+                    {/* VIEW — the read-only Analytics details for this lot. Only a
+                        row that carries the lot it came from is openable. */}
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                      {r._inventoryId ? (
+                        <Link
+                          to={`/seller/analytics/product/${r._inventoryId}`}
+                          title="View product analytics details"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold border border-stone-200 hover:border-[#EA2831] hover:text-[#EA2831] text-stone-600 rounded-lg px-2.5 py-1.5 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">visibility</span> View
+                        </Link>
+                      ) : (
+                        <span className="text-[11px] text-stone-300">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
-                {!loading && rows.length === 0 && <tr><td colSpan={columns.length || 1} className="px-4 py-12 text-center text-stone-400">No data for this report / filter.</td></tr>}
-                {loading && <tr><td colSpan={columns.length || 1} className="px-4 py-12 text-center text-stone-400">Loading…</td></tr>}
+                {!loading && rows.length === 0 && <tr><td colSpan={colCount} className="px-4 py-12 text-center text-stone-400">No data for this report / filter.</td></tr>}
+                {loading && <tr><td colSpan={colCount} className="px-4 py-12 text-center text-stone-400">Loading…</td></tr>}
               </tbody>
             </table>
           </div>

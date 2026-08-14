@@ -8,6 +8,7 @@ const { isBlank, isEmail, isPhone10, isPincode, isGstin, isPan, isValidYear } = 
 const { notify } = require("../../services/notificationService");
 const SellerCompanyLink = require("../../model/Seller/SellerCompanyLink");
 const SellerDocument = require("../../model/PC/SellerDocument");
+const Warehouse = require("../../model/Warehouse/Warehouse");
 const fileService = require("../../services/fileService");
 const path = require("path");
 
@@ -201,12 +202,36 @@ exports.getSellerMe = async (req, res) => {
         capabilities: capabilitiesForRole(role),
         deniedCapabilities: deniedForRole(role),
         warehouseIds: req.user.warehouseIds || [],
+        // ADDITIVE, read-only: the NAMES of the warehouse(s) this member is
+        // assigned to. The header shows the manager's warehouse under their
+        // name, and `warehouseIds` alone carries only ids. Scoped to this
+        // seller's own warehouses, so a stale id in an old token resolves to
+        // nothing rather than leaking another seller's warehouse name.
+        // seller_admin has no assignment and gets an empty list.
+        warehouses: await sellerWarehouseNames(seller._id, req.user.warehouseIds),
       },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * The warehouse(s) a member is assigned to, as { _id, name, code }.
+ *
+ * Read-only and additive — it adds no rule and changes no scope. The assignment
+ * itself still comes from the token (`req.user.warehouseIds`), exactly as
+ * before; this only resolves those ids to names so the header can show which
+ * warehouse the logged-in manager is standing in.
+ */
+async function sellerWarehouseNames(sellerId, warehouseIds) {
+  const ids = (warehouseIds || []).filter(Boolean);
+  if (!ids.length) return [];
+  const rows = await Warehouse.find({ _id: { $in: ids }, sellerId })
+    .select("name code")
+    .lean();
+  return rows.map((w) => ({ _id: String(w._id), name: w.name, code: w.code || null }));
+}
 
 /** Build the seller Profile response — identity + compliance + KYC docs (signed
  * at read-time). Shared by GET and PATCH so both return the same fresh shape. */

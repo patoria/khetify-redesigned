@@ -114,10 +114,32 @@ const SellerLayout = () => {
   };
 
   // Display name = the member's own name when a team member is logged in, else
-  // the seller business name; the business name shows as a secondary label.
+  // the seller business name.
   const businessName = seller?.businessName || seller?.sellerInfo?.businessName || "Seller";
   const displayName = seller?.name || businessName;
+
+  /**
+   * THE LINE UNDER THE NAME IS THE WAREHOUSE, not the seller.
+   *
+   * A warehouse manager is standing in ONE warehouse and needs to see which —
+   * it is the thing that changes what they are looking at, and every screen
+   * they open is scoped to it. The seller/business name is the same on every
+   * login and told them nothing.
+   *
+   * Names come from the seller /me payload, resolved server-side from the
+   * member's assigned warehouse ids. Falls back to the business name for anyone
+   * with NO warehouse assignment — a seller_admin is not in a warehouse, so the
+   * account name is the honest label there and their header is unchanged.
+   */
+  const warehouses = seller?.warehouses || [];
+  const warehouseLabel = warehouses.length === 1
+    ? warehouses[0].name
+    : warehouses.length > 1
+      // Several assignments: name them, and let TopNav truncate if it must.
+      ? warehouses.map((w) => w.name).filter(Boolean).join(" · ")
+      : null;
   const showAccount = seller?.isMember && businessName && businessName !== displayName;
+  const secondaryLabel = warehouseLabel || (showAccount ? businessName : undefined);
   const approved = seller?.linkStatus === "approved";
 
   // Gate a MODULE (approval + plan + cap), returning a sidebar entry or null.
@@ -163,7 +185,7 @@ const SellerLayout = () => {
   // admin hub.
   const profile = {
     name: displayName,
-    secondary: showAccount ? businessName : undefined,
+    secondary: secondaryLabel,
     menuItems: [
       { icon: "person", label: "Profile", onClick: () => navigate("/seller/profile") },
       ...(adminVisible ? [{ icon: "apps", label: "Administration", onClick: () => navigate(SELLER_ADMIN_NAV.path) }] : []),
